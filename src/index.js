@@ -1,3 +1,7 @@
+import dns from "node:dns"
+dns.setServers(['1.1.1.1','1.0.0.1'])
+
+
 import { app } from "./app.js";
 import connectDB from "./db/index.js";
 import dotenv from "dotenv"
