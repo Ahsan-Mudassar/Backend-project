@@ -86,21 +86,27 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
 
+    const { email, username, password } = req.body
+    // console.log(req.body)
 
-    const { username, email, password } = req.body
-
-    if (!(username || email)) {
+    const loginField = email || username
+    if (!loginField) {
         throw new ApiError(400, "username or email is required")
     }
 
-    const user = await User.findOne({ $or: [{ username }, { email }] })
+    const user = await User.findOne({
+        $or: [
+            { email },
+            { username }
+        ]
+    })
 
     if (!user) {
         throw new ApiError(404, "Not Found")
     }
+    // console.log(user)
 
     const isValidPassword = await user.isPasswordCorrect(password)
-
     if (!isValidPassword) {
         throw new ApiError(401, "password is incorrect")
     }
@@ -108,6 +114,7 @@ const loginUser = asyncHandler(async (req, res) => {
     const { accessToken, refreshToken } = await generateRefreshTokenAndAccessToken(user._id)
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    // console.log(accessToken, refreshToken )
 
     const options = {
         httpOnly: true,
@@ -131,6 +138,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
 
 const logOutUser = asyncHandler(async (req, res) => {
+    // console.log("user req",req.user)
     User.findByIdAndUpdate(
         req.user._id,
         {

@@ -38,8 +38,6 @@ const userSchema = new Schema({
     password: {
         type: String,
         required: [true, "password is required"],
-        lowercase: true,
-        unique: true,
         trim: true
     },
     watchHistory: [
@@ -52,10 +50,10 @@ const userSchema = new Schema({
 
 
 userSchema.pre("save", async function () {
-    if (!this.isModified("password")) return ;
+    if (!this.isModified("password")) return;
 
     this.password = await bcrypt.hash(this.password, 10)
-    
+
 })
 
 userSchema.methods.isPasswordCorrect = async function (password) {
