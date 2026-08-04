@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFileOnCloundinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
 
@@ -65,13 +65,20 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar file is required")
     }
 
+    const coverImageSchema = {
+        url: coverImage.url,
+        public_id: coverImage.public_id
+    }
+
     const user = await User.create({
         fullName,
         username: username.toLowerCase(),
         email,
         password,
-        avatar: avatar.url,
-        coverImage: coverImage?.url || "",
+        avatar: {
+            url: avatar.url, public_id: avatar.public_id
+        },
+        coverImage: coverImageSchema || "",
     })
 
     const createdUser = await User.findById(user._id).select("-password -refreshToken")
@@ -250,6 +257,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
         },
         { new: true }
     ).select("-password")
+
     return res
         .status(200)
         .json(
@@ -260,6 +268,26 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 })
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
+
+    const fileUser = await User.findById(req.user?._id)
+
+
+    if (!fileUser) {
+        throw new ApiError(400, "file user not found")
+    }
+
+    const public_id = fileUser?.avatar?.public_id
+
+    if (!public_id) {
+        throw new ApiError(400, "public id not found")
+    }
+
+    const response = await deleteFileOnCloundinary(public_id)
+
+    if (!response) {
+        throw new ApiError(400, "file cant be deleted")
+    }
+
     const avatarLocalPath = req.file?.path
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required")
@@ -275,7 +303,10 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         req.user?._id,
         {
             $set: {
-                avatar: avatar.url
+                avatar: {
+                    url: avatar.url,
+                    public_id: avatar.public_id
+                }
             }
         }
     ).select("-password")
@@ -288,6 +319,24 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
+    const fileUser = await User.findById(req.user._id)
+
+    if (!fileUser) {
+        throw new ApiError(400, "file user not found")
+    }
+
+    const public_id = fileUser?.coverImage?.public_id
+
+    if (!public_id) {
+        throw new ApiError(400, "public id not found")
+    }
+
+    const response = await deleteFileOnCloundinary(public_id)
+
+    if (!response) {
+        throw new ApiError(400, "file cant be deleted")
+    }
+
     const coverImageLocalPath = req.file?.path
     if (!coverImageLocalPath) {
         throw new ApiError(400, "Cover Image file is required")
@@ -303,7 +352,10 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         req.user?._id,
         {
             $set: {
-                coverImage: coverImage.url
+                coverImage: {
+                    url: coverImage.url,
+                    public_id: coverImage.public_id
+                }
             }
         }
     ).select("-password")
