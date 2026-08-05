@@ -35,7 +35,6 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required")
     }
 
-
     const existedUser = await User.findOne({
         $or: [{ username }, { email }]
     })
@@ -53,7 +52,6 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     // console.log("req.files", req.files)
-
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required")
     }
@@ -139,11 +137,8 @@ const loginUser = asyncHandler(async (req, res) => {
                     user: loggedInUser, accessToken, refreshToken
                 },
                 "User LoggedIn successfully "
-
             ))
-
 })
-
 
 const logOutUser = asyncHandler(async (req, res) => {
     // console.log("user req",req.user)
@@ -166,7 +161,6 @@ const logOutUser = asyncHandler(async (req, res) => {
         .clearCookie("refreshToken", options)
         .json(new ApiResponse(200, {}, "User logout sucessfully"))
 })
-
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
     const incommingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
@@ -271,7 +265,6 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     const fileUser = await User.findById(req.user?._id)
 
-
     if (!fileUser) {
         throw new ApiError(400, "file user not found")
     }
@@ -367,6 +360,78 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         )
 })
 
+const getUserChannalProfile = asyncHandler(async (req, res) => {
+
+    const { username } = req.params
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "username not found")
+    }
+
+    const channal = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channal",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribersTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channalSubscribedToCount: {
+                    $size: "$subscribersTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                channalSubscribedToCount: 1,
+                isSubscribed: 1,
+                email: 1,
+                avatar: 1,
+                coverImage: 1
+            }
+        }
+    ])
+
+    if (!channal?.length) {
+        throw new ApiError(404, "channal not exist")
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, channal[0], "user channal fetch successfully")
+        )
+})
+
 export {
     registerUser,
     loginUser,
@@ -376,5 +441,6 @@ export {
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannalProfile
 }
